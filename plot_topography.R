@@ -57,23 +57,27 @@ nose <- data.frame(x = c(-0.075,0,.075),y=c(.495,.575,.495))
 jet.colors <- colorRampPalette(c("#00007F", "blue", "#007FFF", "cyan", "#7FFF7F", "yellow", "#FF7F00", "red", "#7F0000"))
 
 ######
-create_eeg_images <- function(folder, MIN_VAL, MAX_VAL) {
+
+electrodeLocs$electrode <- toupper(electrodeLocs$electrode)
+
+S2_nm_sample_df <- read.csv("data_sample/S2_nm_sample.csv")
+S2_nm_sample_df$sensor.position <- toupper(S2_nm_sample_df$sensor.position)
+
+create_eeg_images <- function(folder, group) {
   i <- 0
   j <- 0
+  MIN_VAL <- min(S2_nm_sample_df$sensor.value)
+  MAX_VAL <- max(S2_nm_sample_df$sensor.value)
   for(i in seq(0, 250, by=10)) {
     ######
     
-    sample_df <- read_csv(paste0("/home/ruslan/Projects/EEG/samples/", folder, "/sample", i, '.csv'))
-    sample_df$`sensor position` <- toupper(sample_df$`sensor position`)
-    electrodeLocs$electrode <- toupper(electrodeLocs$electrode)
+    sample_df <- S2_nm_sample_df %>% 
+      select(-c(name, channel, trial.number)) %>% 
+      dplyr::filter((subject.identifier == group) & (sample.num == i))
     
-    sample_df <- left_join(electrodeLocs, sample_df, by = c("electrode" = "sensor position"))
-    sample_df <- sample_df %>% select(-channel)
-    sample_df <- sample_df %>% rename(amplitude = `sensor value`)
+    sample_df <- left_join(electrodeLocs, sample_df, by = c("electrode" = "sensor.position"))
+    sample_df <- sample_df %>% rename(amplitude = `sensor.value`)
     sample_df <- dplyr::filter(sample_df, !is.na(amplitude))
-    
-    MIN_VAL <- min(sample_df$`sensor value`)
-    MAX_VAL <- max(sample_df$`sensor value`)
     
     ######
     gridRes <- 100 # Specify the number of points for each grid dimension i.e. the resolution/smoothness of the interpolation
@@ -145,10 +149,10 @@ create_eeg_images <- function(folder, MIN_VAL, MAX_VAL) {
                 aes(x,y,z = NULL,fill = NULL),
                 size = 1.5)+
       coord_quickmap() +
-      labs(title=paste0(j, " second")) +
-      ggsave(paste0("/home/ruslan/Projects/EEG/samples/", folder, "/plot", i, ".jpg"))
-    
-    j <- j + 0.039062
+      labs(title=paste0(sample_df$time[sample_df$sample.num == i][1], " second")) +
+      ggsave(paste0("/home/ruslan/Projects/EEG/data_sample/", folder, "/topography_", i, ".jpg"))
   }
 }
-create_eeg_images(folder = "s2_nm_c")
+
+create_eeg_images(folder = "a_topo", group = "a")
+create_eeg_images(folder = "c_topo", group = "c")
